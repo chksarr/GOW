@@ -1,41 +1,191 @@
+import { Scene, KeyboardEventTypes,SetValueAction, FreeCamera, ShadowGenerator, ActionManager, InterpolateValueAction, Vector3, SpotLight, Texture, HemisphericLight, MeshBuilder, Color3, StandardMaterial } from "@babylonjs/core";
+import floorUrl from "../assets/textures/floor.png";
+import floorBumpUrl from "../assets/textures/floor_bump.PNG";
 class Game {
-
     #canvas;
     #engine;
     #gameScene;
-
+    #sphere;
+    #phase = 0.0;
+    #vitesseY = 0.0018;
+    #zoneA;
+    #zoneB;
     constructor(canvas, engine) {
         this.#canvas = canvas;
         this.#engine = engine;
     }
 
     start() {
-        this.initGame()
+        this.initGame();
         this.gameLoop();
         this.endGame();
     }
 
-    initGame() {
+    createScene() {
+        const scene = new Scene(this.#engine);
+        const camera = new FreeCamera("camera1",
+            new Vector3(0, 5, -10), scene);
+        camera.setTarget(Vector3.Zero());
+        camera.attachControl(this.#canvas, true);
+
+        const light = new HemisphericLight("light",
+            new Vector3(0, 1, 0), scene);
+        light.intensity = 0.7;
+        const sLight = new SpotLight("spot1", new Vector3(0, 20, 20), new Vector3(0, -1, -1), 1.2, 24, scene);
+        const shadowGenerator = new ShadowGenerator(1024, sLight);
+        shadowGenerator.useBlurExponentialShadowMap = true;
+
+
+        const sphere = MeshBuilder.CreateSphere("sphere",
+            { diameter: 2, segments: 32 }, scene);
+        sphere.position.y = 1;
+        shadowGenerator.addShadowCaster(sphere);
+        this.#sphere = sphere;
+
+
+
+
+
+        const ground = MeshBuilder.CreateGround("ground",
+            { width: 6, height: 6 }, scene);
+        ground.receiveShadows = true;
+
+        const matGround = new StandardMaterial("boue", scene);
+        matGround.bumpTexture = new Texture(floorBumpUrl);
+        matGround.diffuseTexture = new Texture(floorUrl);
+        ground.material = matGround;
+
+        const matSphere = new StandardMaterial("silver", scene);
+        matSphere.diffuseColor = new Color3(0.8, 0.8, 1);
+        matSphere.specularColor = new Color3(0.4, 0.4, 1);
+        sphere.material = matSphere;
+
+        this.#zoneA = MeshBuilder.CreateBox("zoneA", { width: 8, height: 0.2, depth: 8 },
+            scene);
+        let zoneMat = new StandardMaterial("zoneA", scene);
+        zoneMat.diffuseColor = Color3.Red();
+        zoneMat.alpha = 0.5;
+        this.#zoneA.material = zoneMat;
+        this.#zoneA.position = new Vector3(12, 0.1, 12);
+
+        this.#zoneB = MeshBuilder.CreateBox("zoneB", { width: 8, height: 0.2, depth: 8 },
+            scene);
+        let zoneMatB = new StandardMaterial("zoneB", scene);
+        zoneMatB.diffuseColor = Color3.Green();
+        zoneMatB.alpha = 0.5;
+        this.#zoneB.material = zoneMatB;
+        this.#zoneB.position = new Vector3(-12, 0.1, -12);
+
+        sphere.actionManager = new ActionManager(scene);
+        
+        sphere.actionManager.registerAction(
+            new SetValueAction(
+           {trigger:ActionManager.OnIntersectionEnterTrigger, parameter: this.#zoneB }, 
+           sphere.material,
+           'diffuseColor',
+           Color3.Green()
+           )
+           );
+
+           sphere.actionManager.registerAction(
+            new SetValueAction(
+            {trigger: ActionManager.OnIntersectionExitTrigger, parameter: this.#zoneB }, 
+            sphere.material,
+            'diffuseColor',
+            sphere.material.diffuseColor
+            )
+           );
+           
+        sphere.actionManager.registerAction(
+            new InterpolateValueAction(
+                ActionManager.OnPickTrigger,
+                light,
+                'diffuse',
+                Color3.Black(),
+                1000
+            )
+        );
+
+
+        return scene;
     }
 
+    inputMap = {};
+    actions = {};
+
     initInput() {
+        this.#gameScene.onKeyboardObservable.add((kbInfo) => {
+            switch (kbInfo.type) {
+                case KeyboardEventTypes.KEYDOWN:
+                    this.inputMap[kbInfo.event.code] = true;
+                    console.log(`KEY DOWN: ${kbInfo.event.code} / 
+        ${kbInfo.event.key}`);
+                    break;
+                case KeyboardEventTypes.KEYUP:
+                    this.inputMap[kbInfo.event.code] = false;
+                    this.actions[kbInfo.event.code] = true;
+                    console.log(`KEY UP: ${kbInfo.event.code} / 
+        ${kbInfo.event.key}`);
+                    break;
+            }
+        });
+    }
+
+
+
+
+    initGame() {
+        this.#gameScene = this.createScene();
+        this.initInput();
     }
 
     endGame() {
 
     }
-
     gameLoop() {
+        const divFps = document.getElementById("fps");
+        this.#engine.runRenderLoop(() => {
+            this.updateGame();
+            divFps.innerHTML = this.#engine.getFps().toFixed() + " fps";
+            this.#gameScene.render();
+        });
+        this.updateGame();
+        this.actions = {};
+    }
+    updateGame() {
+        let delta = this.#engine.getDeltaTime();
+        this.#phase += this.#vitesseY * delta;
+        this.#sphere.position.y = 2 + Math.sin(this.#phase);
+        this.#sphere.scaling.y = 1 + 0.125 * Math.sin(this.#phase);
+
+        //Déplacement en X suivant les touches Q et D
+        if (this.inputMap["KeyA"])
+            this.#sphere.position.x -= 0.01 * delta;
+        else if (this.inputMap["KeyD"])
+            this.#sphere.position.x += 0.01 * delta;
+
+        //Déplacement en z suivant les touches S et Z
+        if (this.inputMap["KeyW"])
+            this.#sphere.position.z += 0.01 * delta;
+        else if (this.inputMap["KeyS"])
+            this.#sphere.position.z -= 0.01 * delta;
+
+        // la touche espace est appuyée ET relâchée on augmente notre vitesse
+        if (this.actions["Space"])
+            this.#vitesseY *= 1.25;
+
+
+        //Collisions
+        if (this.#sphere.intersectsMesh(this.#zoneA, false))
+            this.#sphere.material.emissiveColor = Color3.Red();
+        else
+            this.#sphere.material.emissiveColor = Color3.Black();
+
     }
 
-    updateGame() {
-    }
+
+
 
 }
 
 export default Game;
-
-
-
-
-

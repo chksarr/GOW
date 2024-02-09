@@ -13,22 +13,22 @@ module.exports = {
         extensions: [".ts", ".js"],
         fallback: {
             fs: false,
-            path: false, 
+            path: false,
         },
     },
     module: {
         rules: [
             {
-                 test: /\.m?js/,
+                test: /\.m?js/,
             },
             {
-                 test: /\.(js|mjs|jsx|ts|tsx)$/,
-                 loader: "source-map-loader",
-                 enforce: "pre",
+                test: /\.(js|mjs|jsx|ts|tsx)$/,
+                loader: "source-map-loader",
+                enforce: "pre",
             },
             {
                 test: /\.tsx?$/,
-                 loader: "ts-loader",
+                loader: "ts-loader",
             },
             {
                 test: /\.(glsl|vs|fs)$/,
@@ -50,7 +50,7 @@ module.exports = {
                         loader: "url-loader",
                         options: {
                             limit: 4096,
-                         },
+                        },
                     },
                 ],
                 type: 'javascript/auto'
@@ -64,6 +64,6 @@ module.exports = {
             favicon: "public/favicon.ico",
             template: path.resolve(appDirectory, "public/index.html"),
         }),
+            
     ],
 };
-    
