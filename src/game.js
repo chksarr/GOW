@@ -1,6 +1,10 @@
-import { Scene, KeyboardEventTypes,SetValueAction, FreeCamera, ShadowGenerator, ActionManager, InterpolateValueAction, Vector3, SpotLight, Texture, HemisphericLight, MeshBuilder, Color3, StandardMaterial } from "@babylonjs/core";
+/* eslint-disable import/named */
+
+import { Scene, KeyboardEventTypes,  FreeCamera, ShadowGenerator, ActionManager,  Vector3, SpotLight, Texture, HemisphericLight, MeshBuilder, Color3, StandardMaterial } from "@babylonjs/core";
 import floorUrl from "../assets/textures/floor.png";
 import floorBumpUrl from "../assets/textures/floor_bump.PNG";
+import { Inspector} from "@babylonjs/inspector";
+import  Player  from './Player';
 class Game {
     #canvas;
     #engine;
@@ -10,19 +14,22 @@ class Game {
     #vitesseY = 0.0018;
     #zoneA;
     #zoneB;
+    #bInspector = false;
+
+    #player;
     constructor(canvas, engine) {
         this.#canvas = canvas;
         this.#engine = engine;
     }
 
-    start() {
-        this.initGame();
-        this.gameLoop();
-        this.endGame();
-    }
+    async start() { 
+        await this.initGame(); 
+        this.gameLoop(); 
+        this.endGame(); }
 
     createScene() {
         const scene = new Scene(this.#engine);
+        Inspector.Show(scene, {});
         const camera = new FreeCamera("camera1",
             new Vector3(0, 5, -10), scene);
         camera.setTarget(Vector3.Zero());
@@ -36,12 +43,7 @@ class Game {
         shadowGenerator.useBlurExponentialShadowMap = true;
 
 
-        const sphere = MeshBuilder.CreateSphere("sphere",
-            { diameter: 2, segments: 32 }, scene);
-        sphere.position.y = 1;
-        shadowGenerator.addShadowCaster(sphere);
-        this.#sphere = sphere;
-
+       
 
 
 
@@ -55,11 +57,7 @@ class Game {
         matGround.diffuseTexture = new Texture(floorUrl);
         ground.material = matGround;
 
-        const matSphere = new StandardMaterial("silver", scene);
-        matSphere.diffuseColor = new Color3(0.8, 0.8, 1);
-        matSphere.specularColor = new Color3(0.4, 0.4, 1);
-        sphere.material = matSphere;
-
+        
         this.#zoneA = MeshBuilder.CreateBox("zoneA", { width: 8, height: 0.2, depth: 8 },
             scene);
         let zoneMat = new StandardMaterial("zoneA", scene);
@@ -76,35 +74,28 @@ class Game {
         this.#zoneB.material = zoneMatB;
         this.#zoneB.position = new Vector3(-12, 0.1, -12);
 
-        sphere.actionManager = new ActionManager(scene);
-        
-        sphere.actionManager.registerAction(
-            new SetValueAction(
-           {trigger:ActionManager.OnIntersectionEnterTrigger, parameter: this.#zoneB }, 
-           sphere.material,
-           'diffuseColor',
-           Color3.Green()
-           )
-           );
+        Player.actionManager = new ActionManager(scene);
 
-           sphere.actionManager.registerAction(
-            new SetValueAction(
-            {trigger: ActionManager.OnIntersectionExitTrigger, parameter: this.#zoneB }, 
-            sphere.material,
-            'diffuseColor',
-            sphere.material.diffuseColor
-            )
-           );
-           
-        sphere.actionManager.registerAction(
-            new InterpolateValueAction(
-                ActionManager.OnPickTrigger,
-                light,
-                'diffuse',
-                Color3.Black(),
-                1000
-            )
-        );
+        
+
+        // Player.actionManager.registerAction(
+        //     new SetValueAction(
+        //         { trigger: ActionManager.OnIntersectionExitTrigger, parameter: this.#zoneB },
+        //         Player.material,
+        //         'diffuseColor',
+        //         Player.material.diffuseColor
+        //     )
+        // );
+
+        // Player.actionManager.registerAction(
+        //     new InterpolateValueAction(
+        //         ActionManager.OnPickTrigger,
+        //         light,
+        //         'diffuse',
+        //         Color3.Black(),
+        //         1000
+        //     )
+        // );
 
 
         return scene;
@@ -134,9 +125,12 @@ class Game {
 
 
 
-    initGame() {
+    async initGame() {
         this.#gameScene = this.createScene();
         this.initInput();
+        this.#player = new Player(3, 1, 3, this.#gameScene); 
+        await this.#player.init();
+
     }
 
     endGame() {
@@ -151,35 +145,45 @@ class Game {
         });
         this.updateGame();
         this.actions = {};
+
+        //Debug
+        if (this.actions["KeyI"]) {
+            this.#bInspector = !this.#bInspector;
+            if (this.#bInspector)
+                Inspector.Show();
+            else
+                Inspector.Hide();
+        }
     }
     updateGame() {
-        let delta = this.#engine.getDeltaTime();
-        this.#phase += this.#vitesseY * delta;
-        this.#sphere.position.y = 2 + Math.sin(this.#phase);
-        this.#sphere.scaling.y = 1 + 0.125 * Math.sin(this.#phase);
+        // let delta = this.#engine.getDeltaTime() / 1000.0;
+        // this.#player += this.#vitesseY * delta;
+        // //this.#player.position.y = 2 + Math.sin(this.#phase);
+        // this.#player.scaling.y = 1 + 0.125 * Math.sin(this.#phase);
+        // this.#player.update(this.inputMap, this.actions, delta);
 
-        //Déplacement en X suivant les touches Q et D
-        if (this.inputMap["KeyA"])
-            this.#sphere.position.x -= 0.01 * delta;
-        else if (this.inputMap["KeyD"])
-            this.#sphere.position.x += 0.01 * delta;
+        // //Déplacement en X suivant les touches Q et D
+        // if (this.inputMap["KeyA"])
+        //     this.#player.position.x -= 0.01 * delta;
+        // else if (this.inputMap["KeyD"])
+        //     this.#player.position.x += 0.01 * delta;
 
-        //Déplacement en z suivant les touches S et Z
-        if (this.inputMap["KeyW"])
-            this.#sphere.position.z += 0.01 * delta;
-        else if (this.inputMap["KeyS"])
-            this.#sphere.position.z -= 0.01 * delta;
+        // //Déplacement en z suivant les touches S et Z
+        // if (this.inputMap["KeyW"])
+        //     this.#player.position.z += 0.01 * delta;
+        // else if (this.inputMap["KeyS"])
+        //     this.#player.position.z -= 0.01 * delta;
 
-        // la touche espace est appuyée ET relâchée on augmente notre vitesse
-        if (this.actions["Space"])
-            this.#vitesseY *= 1.25;
+        // // la touche espace est appuyée ET relâchée on augmente notre vitesse
+        // if (this.actions["Space"])
+        //     this.#vitesseY *= 1.25;
 
 
-        //Collisions
-        if (this.#sphere.intersectsMesh(this.#zoneA, false))
-            this.#sphere.material.emissiveColor = Color3.Red();
-        else
-            this.#sphere.material.emissiveColor = Color3.Black();
+        // //Collisions
+        // if (this.#player.intersectsMesh(this.#zoneA, false))
+        //     this.#player.material.emissiveColor = Color3.Red();
+        // else
+        //     this.#player.material.emissiveColor = Color3.Black();
 
     }
 

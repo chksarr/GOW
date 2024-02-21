@@ -1,5 +1,7 @@
 import { Engine } from "@babylonjs/core";
 import Game from "./game";
+
+
 let canvas;
 let engine;
 const babylonInit = async () => {
@@ -16,5 +18,6 @@ window.onload = () => {
     babylonInit().then(() => {
         const game = new Game(canvas, engine);
         game.start();
+        
     });
 }
